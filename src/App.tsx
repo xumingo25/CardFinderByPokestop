@@ -1,192 +1,263 @@
-import { useEffect, useState } from "react";
+import React, { JSX, useEffect, useState } from "react";
 import "./App.css";
 
-interface Pokemon {
-  name: string;
+/* -------------------------
+   Tipos / Constantes
+   ------------------------- */
+type Pokemon = {
   id: number;
+  name: string;
   image: string;
   types: string[];
+};
+
+const TYPE_ICON_URL = (type: string) =>
+  `https://raw.githubusercontent.com/duiker101/pokemon-type-svg/master/icons/${type}.svg`;
+
+/* Regiones definidas como const para tipado seguro */
+const REGIONS = {
+  Kanto: { start: 1, end: 151 },
+  Johto: { start: 152, end: 251 },
+  Hoenn: { start: 252, end: 386 },
+  Sinnoh: { start: 387, end: 493 },
+  Teselia: { start: 494, end: 649 },
+  Kalos: { start: 650, end: 721 },
+  Alola: { start: 722, end: 809 },
+  Galar: { start: 810, end: 898 },
+  Paldea: { start: 899, end: 1025 },
+} as const;
+type RegionName = keyof typeof REGIONS;
+
+/* Colores para la barra de nombre (tipo principal) */
+const TYPE_COLORS: Record<string, string> = {
+  fire: "#ffb07b",
+  water: "#9cc7ff",
+  grass: "#bff2a6",
+  electric: "#ffe08a",
+  ice: "#cff6ff",
+  fighting: "#f0b6a6",
+  poison: "#d6a5f5",
+  ground: "#e8d5b0",
+  flying: "#d8d8ff",
+  psychic: "#ffb2db",
+  bug: "#d7ef9a",
+  rock: "#d9c89d",
+  ghost: "#c8baf1",
+  dragon: "#c6b8ff",
+  dark: "#cfcfcf",
+  steel: "#dce3ea",
+  fairy: "#ffd7ea",
+  normal: "#ececec",
+};
+
+/* -------------------------
+   Helpers: batching fetch
+   ------------------------- */
+async function fetchPokemonById(id: number) {
+  const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
+  if (!res.ok) throw new Error(`Failed to fetch pokemon ${id}`);
+  const json = await res.json();
+  return {
+    id,
+    name: json.name,
+    image: `https://img.pokemondb.net/sprites/home/normal/${json.name}.png`,
+    types: json.types.map((t: any) => t.type.name as string),
+  } as Pokemon;
 }
 
-const TYPE_ICONS: Record<string, string> = {
-  normal: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/1.png",
-  fighting: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/2.png",
-  flying: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/3.png",
-  poison: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/4.png",
-  ground: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/5.png",
-  rock: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/6.png",
-  bug: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/7.png",
-  ghost: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/8.png",
-  steel: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/9.png",
-  fire: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/10.png",
-  water: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/11.png",
-  grass: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/12.png",
-  electric: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/13.png",
-  psychic: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/14.png",
-  ice: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/15.png",
-  dragon: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/16.png",
-  dark: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/17.png",
-  fairy: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/18.png"
-};
+/** fetchInBatches: limit concurrent requests to avoid rate / CPU spikes */
+async function fetchInBatches(ids: number[], batchSize = 12) {
+  const out: Pokemon[] = [];
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batch = ids.slice(i, i + batchSize);
+    const promises = batch.map((id) =>
+      fetchPokemonById(id).catch((err) => {
+        // fallback: return minimal object so UI doesn't crash
+        console.warn("fetch failed for id", id, err);
+        return {
+          id,
+          name: `#${id}`,
+          image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`,
+          types: ["normal"],
+        } as Pokemon;
+      })
+    );
+    const results = await Promise.all(promises);
+    out.push(...results);
+  }
+  return out;
+}
 
-// Colores para Opción 3 (barra según tipo principal)
-const TYPE_COLORS: Record<string, string> = {
-  fire: "#ff5733",
-  water: "#3399ff",
-  grass: "#55cc55",
-  electric: "#ffdd33",
-  ice: "#99e6ff",
-  fighting: "#cc3300",
-  poison: "#aa33cc",
-  ground: "#d2b48c",
-  flying: "#8899ff",
-  psychic: "#ff66cc",
-  bug: "#aabb22",
-  rock: "#bbaa66",
-  ghost: "#6666cc",
-  dragon: "#7766ff",
-  dark: "#555555",
-  steel: "#c0c0c0",
-  fairy: "#ff99cc",
-  normal: "#dddddd"
-};
-
-// Regiones oficiales
-const REGIONS: Record<string, [number, number]> = {
-  Kanto: [1, 151],
-  Johto: [152, 251],
-  Hoenn: [252, 386],
-  Sinnoh: [387, 493],
-  Teselia: [494, 649],
-  Kalos: [650, 721],
-  Alola: [722, 809],
-  Galar: [810, 905],
-  Paldea: [906, 1025],
-};
-
-function App() {
+/* -------------------------
+   Componente App
+   ------------------------- */
+export default function App(): JSX.Element {
+  const [region, setRegion] = useState<RegionName>("Kanto");
   const [pokemons, setPokemons] = useState<Pokemon[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [allTypes, setAllTypes] = useState<string[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<string | null>(null);
 
-  // === Carga Pokémon ===
+  /* Cargar lista de tipos (para mostrar chips) */
   useEffect(() => {
-    fetch("https://pokeapi.co/api/v2/pokemon?limit=1100")
-      .then((res) => res.json())
-      .then(async (data) => {
-        const results = await Promise.all(
-          data.results.map(async (p: any) => {
-            const id = Number(p.url.split("/").filter(Boolean).pop());
-
-            const details = await fetch(p.url).then((r) => r.json());
-            const types = details.types.map((t: any) => t.type.name);
-
-            return {
-              name: p.name,
-              id,
-              image: `https://img.pokemondb.net/sprites/home/normal/${p.name}.png`,
-              types,
-            };
-          })
-        );
-
-        setPokemons(results);
+    fetch("https://pokeapi.co/api/v2/type/")
+      .then((r) => r.json())
+      .then((data) => {
+        // filter out special types that PokeAPI returns
+        const types = data.results
+          .map((t: any) => t.name)
+          .filter((t: string) => t !== "shadow" && t !== "unknown");
+        setAllTypes(types);
+      })
+      .catch((e) => {
+        console.error("Failed to load types", e);
       });
   }, []);
 
-  // === Filtros ===
+  /* Cargar pokémon por región (batched) */
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    setPokemons([]);
+
+    const { start, end } = REGIONS[region];
+    const ids: number[] = [];
+    for (let id = start; id <= end; id++) ids.push(id);
+
+    // fetch in batches and update progressively
+    (async () => {
+      try {
+        const fetched = await fetchInBatches(ids, 14);
+        if (!mounted) return;
+        // sort by id just in case
+        fetched.sort((a, b) => a.id - b.id);
+        setPokemons(fetched);
+      } catch (err) {
+        console.error("Error loading pokemons", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [region]);
+
+  /* Toggle type selection (multi-select) */
+  const toggleType = (type: string) => {
+    setSelectedTypes((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    );
+  };
+
+  /* Filtered list */
   const filtered = pokemons.filter((p) => {
-    if (selectedRegion) {
-      const [min, max] = REGIONS[selectedRegion];
-      if (p.id < min || p.id > max) return false;
-    }
-
-    if (selectedType && !p.types.includes(selectedType)) return false;
-
     if (search && !p.name.toLowerCase().includes(search.toLowerCase()))
       return false;
-
-    return true;
+    if (selectedTypes.length === 0) return true;
+    // must include ALL selected types (AND logic)
+    return selectedTypes.every((t) => p.types.includes(t));
   });
 
   return (
     <div className="pokedex">
+      {/* header: lights + minimal search */}
       <div className="pokedex-header">
-        <div className="light red"></div>
-        <div className="light yellow"></div>
-        <div className="light green"></div>
+        <div className="lights">
+          <div className="light red" />
+          <div className="light yellow" />
+          <div className="light green" />
+        </div>
 
-        {/* FILTROS ARRIBA */}
-        <div className="filter-area">
-          {/* Filtro por nombre */}
+        <div className="header-controls">
           <input
-            className="filter-input"
+            className="search-input"
             placeholder="Buscar Pokémon..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            aria-label="Buscar Pokémon"
           />
 
-          {/* Filtro por región */}
           <select
-            className="filter-select"
-            onChange={(e) =>
-              setSelectedRegion(e.target.value || null)
-            }
+            className="region-select"
+            value={region}
+            onChange={(e) => setRegion(e.target.value as RegionName)}
+            aria-label="Seleccionar región"
           >
-            <option value="">Todas las regiones</option>
-            {Object.keys(REGIONS).map((region) => (
-              <option key={region} value={region}>
-                {region}
+            {Object.keys(REGIONS).map((r) => (
+              <option key={r} value={r}>
+                {r}
               </option>
             ))}
           </select>
-
-          {/* Filtro por tipo */}
-          <div className="type-icons">
-            {Object.keys(TYPE_ICONS).map((type) => (
-              <img
-                key={type}
-                src={TYPE_ICONS[type]}
-                className={
-                  "type-icon " + (selectedType === type ? "active" : "")
-                }
-                onClick={() =>
-                  setSelectedType(selectedType === type ? null : type)
-                }
-                title={"Filtrar por " + type}
-              />
-            ))}
-          </div>
         </div>
       </div>
 
-      <div className="pokedex-screen">
-        <div className="pokemon-grid">
-          {filtered.map((pokemon) => (
-            <a
-              key={pokemon.id}
-              href={`https://pokestop.cl/search/?q=${pokemon.name}`}
-              className="pokemon-tile"
-              target="_blank"
-              rel="noopener noreferrer"
+      {/* chips: type filters (minimal, wrap, responsive) */}
+      <div className="type-chips" role="toolbar" aria-label="Filtros por tipo">
+        <div className="chips-row">
+          {allTypes.map((t) => (
+            <button
+              key={t}
+              className={`chip ${selectedTypes.includes(t) ? "chip-active" : ""}`}
+              onClick={() => toggleType(t)}
+              title={`Filtrar por ${t}`}
             >
-              <img src={pokemon.image} alt={pokemon.name} />
-
-              <div
-                className="pokemon-name-bar"
-                style={{
-                  background: TYPE_COLORS[pokemon.types[0]] || "#ccc",
+              <img
+                src={TYPE_ICON_URL(t)}
+                alt={t}
+                onError={(ev) => {
+                  // fallback to text-only if svg fails
+                  (ev.target as HTMLImageElement).style.display = "none";
                 }}
-              >
-                {pokemon.name}
-              </div>
-            </a>
+                loading="lazy"
+              />
+              <span>{t.toUpperCase()}</span>
+            </button>
           ))}
         </div>
+      </div>
+
+      {/* screen / grid */}
+      <div className="pokedex-screen">
+        {loading ? (
+          <div className="loading">Cargando Pokémons...</div>
+        ) : (
+          <div className="pokemon-grid" role="list">
+            {filtered.map((p) => (
+              <a
+                key={p.id}
+                className="pokemon-tile"
+                href={`https://pokestop.cl/search/?q=${encodeURIComponent(p.name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                role="listitem"
+              >
+                <img
+                  src={p.image}
+                  alt={p.name}
+                  loading="lazy"
+                  onError={(e) => {
+                    // fallback image if pokemondb missing
+                    (e.target as HTMLImageElement).src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
+                  }}
+                />
+                <div
+                  className="pokemon-name"
+                  style={{
+                    background: TYPE_COLORS[p.types[0]] || "#ddd",
+                  }}
+                >
+                  {p.name}
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-export default App;
