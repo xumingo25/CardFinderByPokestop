@@ -99,27 +99,33 @@ body, html, #root {
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 2px solid transparent;
+  justify-content: center;
+  padding: 0;
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  border: 3px solid transparent;
   cursor: pointer;
-  font-weight: 600;
-  color: #222;
-  transition: transform .12s ease, border-color .12s ease, opacity .12s;
+  transition: transform .12s ease, border-color .12s ease, box-shadow .12s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  overflow: hidden;
 }
 
 .chip img {
-  width: 28px;
-  height: 28px;
-  display: inline-block;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
-.chip:hover { transform: translateY(-3px); }
+.chip:hover { 
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
 
 .chip-active {
   border-color: #ffd700;
-  opacity: 1 !important;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
 }
 
 /* =============== screen (green) and grid =============== */
@@ -216,26 +222,28 @@ body, html, #root {
 @media (max-width: 1200px) {
   .pokemon-grid { grid-template-columns: repeat(8, 1fr); }
   .chips-row { gap: 6px; }
-  .chip img { width: 24px; height: 24px; }
+  .chip { padding: 6px; }
+  .chip img { width: 36px; height: 36px; }
 }
 
 @media (max-width: 900px) {
   .pokemon-grid { grid-template-columns: repeat(6, 1fr); }
   .search-input { min-width: 140px; flex: 1 1 160px; }
   .region-select { min-width: 120px; }
+  .chip img { width: 32px; height: 32px; }
 }
 
 @media (max-width: 600px) {
   .pokemon-grid { grid-template-columns: repeat(4, 1fr); }
-  .chip img { width: 20px; height: 20px; }
-  .chip span { font-size: 12px; }
   .search-input { min-width: 110px; }
   .header-controls { justify-content: flex-end; }
   .pokemon-number { font-size: 10px; padding: 1px 4px; }
+  .chip { padding: 5px; }
+  .chip img { width: 28px; height: 28px; }
 }
 
 @media (max-width: 420px) {
   .pokemon-grid { grid-template-columns: repeat(3, 1fr); }
-  .chip { padding: 6px 8px; }
-  .chip img { width: 18px; height: 18px; }
+  .chip { padding: 4px; }
+  .chip img { width: 24px; height: 24px; }
 }
