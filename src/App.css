@@ -5,6 +5,7 @@ body, html, #root {
   height: 100%;
   background: #202020;
   font-family: 'Roboto', sans-serif;
+  overflow-x: hidden;
 }
 
 /* Pokedex outer frame (keeps your red border, radius, shadow, etc.) */
@@ -102,11 +103,10 @@ body, html, #root {
   padding: 6px 10px;
   border-radius: 999px;
   border: 2px solid transparent;
-  background: rgba(255,255,255,0.92);
   cursor: pointer;
   font-weight: 600;
   color: #222;
-  transition: transform .12s ease, border-color .12s ease, background .12s;
+  transition: transform .12s ease, border-color .12s ease, opacity .12s;
 }
 
 .chip img {
@@ -119,7 +119,7 @@ body, html, #root {
 
 .chip-active {
   border-color: #ffd700;
-  background: rgba(255,250,200,0.95);
+  opacity: 1 !important;
 }
 
 /* =============== screen (green) and grid =============== */
@@ -133,6 +133,8 @@ body, html, #root {
   box-shadow: inset 0 0 20px rgba(0,0,0,0.45);
   display: flex;
   overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 /* grid inside screen: scroll only on grid */
@@ -144,6 +146,7 @@ body, html, #root {
   gap: 8px;
 
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 8px;
 }
 
@@ -165,9 +168,23 @@ body, html, #root {
   text-decoration: none;
   padding: 6px;
   transition: transform 0.15s ease, background 0.15s ease;
+  position: relative;
 }
 
 .pokemon-tile:hover { transform: scale(1.05); background: #fff; }
+
+.pokemon-number {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0b4f0b;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 2px 6px;
+  border-radius: 8px;
+  border: 1px solid #0b4f0b;
+}
 
 .pokemon-tile img {
   width: 70px;
@@ -214,6 +231,7 @@ body, html, #root {
   .chip span { font-size: 12px; }
   .search-input { min-width: 110px; }
   .header-controls { justify-content: flex-end; }
+  .pokemon-number { font-size: 10px; padding: 1px 4px; }
 }
 
 @media (max-width: 420px) {

@@ -28,7 +28,7 @@ const REGIONS = {
 } as const;
 type RegionName = keyof typeof REGIONS;
 
-/* Colores para la barra de nombre (tipo principal) */
+/* Colores para la barra de nombre y chips (tipo principal) */
 const TYPE_COLORS: Record<string, string> = {
   fire: "#ffb07b",
   water: "#9cc7ff",
@@ -48,6 +48,17 @@ const TYPE_COLORS: Record<string, string> = {
   steel: "#dce3ea",
   fairy: "#ffd7ea",
   normal: "#ececec",
+};
+
+/* Helper para generar background dual (mitad y mitad) */
+const getTypeBackground = (types: string[]) => {
+  if (types.length === 1) {
+    return TYPE_COLORS[types[0]] || "#ddd";
+  }
+  // Si tiene 2 tipos, crear gradiente 50/50
+  const color1 = TYPE_COLORS[types[0]] || "#ddd";
+  const color2 = TYPE_COLORS[types[1]] || "#ddd";
+  return `linear-gradient(90deg, ${color1} 0%, ${color1} 50%, ${color2} 50%, ${color2} 100%)`;
 };
 
 /* -------------------------
@@ -205,6 +216,11 @@ export default function App(): JSX.Element {
               className={`chip ${selectedTypes.includes(t) ? "chip-active" : ""}`}
               onClick={() => toggleType(t)}
               title={`Filtrar por ${t}`}
+              style={{
+                background: selectedTypes.includes(t) 
+                  ? `${TYPE_COLORS[t] || "#fff"}` 
+                  : `${TYPE_COLORS[t] || "#fff"}dd`,
+              }}
             >
               <img
                 src={TYPE_ICON_URL(t)}
@@ -236,6 +252,7 @@ export default function App(): JSX.Element {
                 rel="noopener noreferrer"
                 role="listitem"
               >
+                <div className="pokemon-number">#{String(p.id).padStart(3, '0')}</div>
                 <img
                   src={p.image}
                   alt={p.name}
@@ -248,7 +265,7 @@ export default function App(): JSX.Element {
                 <div
                   className="pokemon-name"
                   style={{
-                    background: TYPE_COLORS[p.types[0]] || "#ddd",
+                    background: getTypeBackground(p.types),
                   }}
                 >
                   {p.name}
