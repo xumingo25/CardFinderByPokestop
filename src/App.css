@@ -212,25 +212,96 @@ body, html, #root {
 }
 
 /* loading */
-.loading {
+.loading-container {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 40px;
   margin: auto;
+}
+
+.pokeball-loader {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #ff0000 0%, #ff0000 50%, #ffffff 50%, #ffffff 100%);
+  border: 4px solid #222;
+  position: relative;
+  animation: spin 1s linear infinite;
+}
+
+.pokeball-loader::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border: 4px solid #222;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.pokeball-loader::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 4px;
+  background: #222;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
   font-weight: 700;
   color: #0b4f0b;
+  font-size: 18px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.loading-more {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+}
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  border: 4px solid rgba(11, 79, 11, 0.2);
+  border-top-color: #0b4f0b;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 /* =============== responsive rules =============== */
 @media (max-width: 1200px) {
   .pokemon-grid { grid-template-columns: repeat(8, 1fr); }
   .chips-row { gap: 6px; }
-  .chip { padding: 6px; }
-  .chip img { width: 36px; height: 36px; }
+  .chip { width: 45px; height: 45px; }
 }
 
 @media (max-width: 900px) {
   .pokemon-grid { grid-template-columns: repeat(6, 1fr); }
   .search-input { min-width: 140px; flex: 1 1 160px; }
   .region-select { min-width: 120px; }
-  .chip img { width: 32px; height: 32px; }
+  .chip { width: 42px; height: 42px; }
 }
 
 @media (max-width: 600px) {
@@ -238,12 +309,10 @@ body, html, #root {
   .search-input { min-width: 110px; }
   .header-controls { justify-content: flex-end; }
   .pokemon-number { font-size: 10px; padding: 1px 4px; }
-  .chip { padding: 5px; }
-  .chip img { width: 28px; height: 28px; }
+  .chip { width: 38px; height: 38px; }
 }
 
 @media (max-width: 420px) {
   .pokemon-grid { grid-template-columns: repeat(3, 1fr); }
-  .chip { padding: 4px; }
-  .chip img { width: 24px; height: 24px; }
+  .chip { width: 34px; height: 34px; }
 }

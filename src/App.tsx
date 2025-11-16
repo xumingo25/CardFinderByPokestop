@@ -39,6 +39,7 @@ const TYPE_ICON_URL = (type: string) => {
 
 /* Regiones definidas como const para tipado seguro */
 const REGIONS = {
+  Nacional: { start: 1, end: 1025 },
   Kanto: { start: 1, end: 151 },
   Johto: { start: 152, end: 251 },
   Hoenn: { start: 252, end: 386 },
@@ -100,7 +101,11 @@ async function fetchPokemonById(id: number) {
 }
 
 /** fetchInBatches: limit concurrent requests to avoid rate / CPU spikes */
-async function fetchInBatches(ids: number[], batchSize = 12) {
+async function fetchInBatches(
+  ids: number[], 
+  batchSize = 20,
+  onProgress?: (loaded: Pokemon[]) => void
+) {
   const out: Pokemon[] = [];
   for (let i = 0; i < ids.length; i += batchSize) {
     const batch = ids.slice(i, i + batchSize);
@@ -118,6 +123,11 @@ async function fetchInBatches(ids: number[], batchSize = 12) {
     );
     const results = await Promise.all(promises);
     out.push(...results);
+    
+    // Llamar callback de progreso si existe
+    if (onProgress) {
+      onProgress([...out]);
+    }
   }
   return out;
 }
@@ -126,7 +136,7 @@ async function fetchInBatches(ids: number[], batchSize = 12) {
    Componente App
    ------------------------- */
 export default function App(): JSX.Element {
-  const [region, setRegion] = useState<RegionName>("Kanto");
+  const [region, setRegion] = useState<RegionName>("Nacional");
   const [pokemons, setPokemons] = useState<Pokemon[]>([]);
   const [loading, setLoading] = useState(false);
 
