@@ -100,7 +100,7 @@ async function fetchPokemonById(id: number) {
   } as Pokemon;
 }
 
-/** fetchInBatches: limit concurrent requests to avoid rate / CPU spikes */
+/** fetchInBatches: limit concurrent requests + carga progresiva */
 async function fetchInBatches(
   ids: number[], 
   batchSize = 20,
@@ -111,7 +111,6 @@ async function fetchInBatches(
     const batch = ids.slice(i, i + batchSize);
     const promises = batch.map((id) =>
       fetchPokemonById(id).catch((err) => {
-        // fallback: return minimal object so UI doesn't crash
         console.warn("fetch failed for id", id, err);
         return {
           id,
@@ -124,7 +123,7 @@ async function fetchInBatches(
     const results = await Promise.all(promises);
     out.push(...results);
     
-    // Llamar callback de progreso si existe
+    // Actualizar UI progresivamente
     if (onProgress) {
       onProgress([...out]);
     }
@@ -149,7 +148,6 @@ export default function App(): JSX.Element {
     fetch("https://pokeapi.co/api/v2/type/")
       .then((r) => r.json())
       .then((data) => {
-        // filter out special types that PokeAPI returns
         const types = data.results
           .map((t: any) => t.name)
           .filter((t: string) => t !== "shadow" && t !== "unknown" && t !== "stellar");
@@ -160,7 +158,7 @@ export default function App(): JSX.Element {
       });
   }, []);
 
-  /* Cargar pokémon por región (batched) */
+  /* Cargar pokémon por región (batched + progresivo) */
   useEffect(() => {
     let mounted = true;
     setLoading(true);
@@ -170,14 +168,14 @@ export default function App(): JSX.Element {
     const ids: number[] = [];
     for (let id = start; id <= end; id++) ids.push(id);
 
-    // fetch in batches and update progressively
     (async () => {
       try {
-        const fetched = await fetchInBatches(ids, 14);
-        if (!mounted) return;
-        // sort by id just in case
-        fetched.sort((a, b) => a.id - b.id);
-        setPokemons(fetched);
+        await fetchInBatches(ids, 20, (loaded) => {
+          if (!mounted) return;
+          // Actualizar UI mientras carga
+          const sorted = [...loaded].sort((a, b) => a.id - b.id);
+          setPokemons(sorted);
+        });
       } catch (err) {
         console.error("Error loading pokemons", err);
       } finally {
@@ -202,19 +200,20 @@ export default function App(): JSX.Element {
     if (search && !p.name.toLowerCase().includes(search.toLowerCase()))
       return false;
     if (selectedTypes.length === 0) return true;
-    // must include ALL selected types (AND logic)
     return selectedTypes.every((t) => p.types.includes(t));
   });
 
   return (
     <div className="pokedex">
-      {/* header: lights + minimal search */}
+      {/* header: lights + title + controls + type chips (todo en una línea en desktop) */}
       <div className="pokedex-header">
         <div className="lights">
           <div className="light red" />
           <div className="light yellow" />
           <div className="light green" />
         </div>
+
+        <h1 className="cardhunters-title">CARDHUNTERS</h1>
 
         <div className="header-controls">
           <input
@@ -238,70 +237,78 @@ export default function App(): JSX.Element {
             ))}
           </select>
         </div>
-      </div>
 
-      {/* chips: type filters (minimal, wrap, responsive) */}
-      <div className="type-chips" role="toolbar" aria-label="Filtros por tipo">
-        <div className="chips-row">
-          {allTypes.map((t) => (
-            <button
-              key={t}
-              className={`chip ${selectedTypes.includes(t) ? "chip-active" : ""}`}
-              onClick={() => toggleType(t)}
-              title={`Filtrar por ${t}`}
-              aria-label={`Filtrar por tipo ${t}`}
-            >
-              <img
-                src={TYPE_ICON_URL(t)}
-                alt={t}
-                onError={(ev) => {
-                  // fallback: ocultar si falla la carga
-                  (ev.target as HTMLImageElement).style.display = "none";
-                }}
-                loading="lazy"
-              />
-            </button>
-          ))}
+        {/* chips: type filters */}
+        <div className="type-chips" role="toolbar" aria-label="Filtros por tipo">
+          <div className="chips-row">
+            {allTypes.map((t) => (
+              <button
+                key={t}
+                className={`chip ${selectedTypes.includes(t) ? "chip-active" : ""}`}
+                onClick={() => toggleType(t)}
+                title={`Filtrar por ${t}`}
+                aria-label={`Filtrar por tipo ${t}`}
+              >
+                <img
+                  src={TYPE_ICON_URL(t)}
+                  alt={t}
+                  onError={(ev) => {
+                    (ev.target as HTMLImageElement).style.display = "none";
+                  }}
+                  loading="lazy"
+                />
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* screen / grid */}
       <div className="pokedex-screen">
-        {loading ? (
-          <div className="loading">Cargando Pokémons...</div>
-        ) : (
-          <div className="pokemon-grid" role="list">
-            {filtered.map((p) => (
-              <a
-                key={p.id}
-                className="pokemon-tile"
-                href={`https://pokestop.cl/search/?q=${encodeURIComponent(p.name)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                role="listitem"
-              >
-                <div className="pokemon-number">#{String(p.id).padStart(3, '0')}</div>
-                <img
-                  src={p.image}
-                  alt={p.name}
-                  loading="lazy"
-                  onError={(e) => {
-                    // fallback image if pokemondb missing
-                    (e.target as HTMLImageElement).src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
-                  }}
-                />
-                <div
-                  className="pokemon-name"
-                  style={{
-                    background: getTypeBackground(p.types),
-                  }}
+        <div className="pokemon-grid" role="list">
+          {loading && pokemons.length === 0 ? (
+            <div className="loading-container">
+              <div className="pokeball-loader"></div>
+              <div className="loading-text">Cargando Pokémons...</div>
+            </div>
+          ) : (
+            <>
+              {filtered.map((p) => (
+                <a
+                  key={p.id}
+                  className="pokemon-tile"
+                  href={`https://pokestop.cl/search/?q=${encodeURIComponent(p.name)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  role="listitem"
                 >
-                  {p.name}
+                  <div className="pokemon-number">#{String(p.id).padStart(3, '0')}</div>
+                  <img
+                    src={p.image}
+                    alt={p.name}
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
+                    }}
+                  />
+                  <div
+                    className="pokemon-name"
+                    style={{
+                      background: getTypeBackground(p.types),
+                    }}
+                  >
+                    {p.name}
+                  </div>
+                </a>
+              ))}
+              {loading && pokemons.length > 0 && (
+                <div className="loading-more">
+                  <div className="spinner"></div>
                 </div>
-              </a>
-            ))}
-          </div>
-        )}
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
