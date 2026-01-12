@@ -213,7 +213,7 @@ export default function App(): JSX.Element {
           <div className="light green" />
         </div>
 
-        <h1 className="cardhunters-title">CARDHUNTERS</h1>
+        <h1 className="cardhunters-title">Card Finder v0.1</h1>
 
         <div className="header-controls">
           <input
